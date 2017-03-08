@@ -2,6 +2,7 @@
 #include "tools.h"
 #include "Eigen/Dense"
 #include <iostream>
+#include <cmath>
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -18,30 +19,21 @@ FusionEKF::FusionEKF() {
 
   // initializing matrices
   R_laser_ = MatrixXd(2, 2);
-  R_radar_ = MatrixXd(3, 3);
+  // Hand-tuned the R_laser_ matrix to find good results.
+  R_laser_ << 0.0001, 0,
+              0, 0.0001;
   H_laser_ = MatrixXd(2, 4);
-  Hj_ = MatrixXd(3, 4);
+  H_laser_ << 1, 0, 0, 0,
+              0, 1, 0, 0;
 
-  //create a 4D state vector, we don't know yet the values of the x state
-  kf_.x_ = VectorXd(4);
-
-  //state covariance matrix P
-  kf_.P_ = MatrixXd(4, 4);
-  kf_.P_ << 1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1000, 0,
-            0, 0, 0, 1000;
+  R_radar_ = MatrixXd(3, 3);
+  // Hand-tuned the R_radar_ matrix to find good results.
+  R_radar_ << 10, 0, 0,
+              0, 5, 0,
+              0, 0, 0.001;
 
   //the initial transition matrix F_
-  kf_.F_ = MatrixXd(4, 4);
-  kf_.F_ << 1, 0, 1, 0,
-            0, 1, 0, 1,
-            0, 0, 1, 0,
-            0, 0, 0, 1;
-
-  //set the acceleration noise components
-  noise_ax = 5;
-  noise_ay = 5;
+  ekf_.F_ = MatrixXd(4, 4);
 }
 
 /**
@@ -66,19 +58,42 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
     // first measurement
     cout << "EKF: " << endl;
     ekf_.x_ = VectorXd(4);
+    ekf_.P_ = MatrixXd(4, 4);
 
     if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+      cout << "Initial measurement is RADAR" << endl;
       /**
       Convert radar from polar to cartesian coordinates and initialize state.
       */
-      ekf_.x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0, 0;
+      float r = measurement_pack.raw_measurements_[0];
+      float phi = measurement_pack.raw_measurements_[1];
+      float rate = measurement_pack.raw_measurements_[2];
+      ekf_.x_ << r*cos(phi), r*sin(phi), rate*cos(phi), rate*sin(phi);
+      // If the initial measurement is radar then we are more confident of the velocity
+      // and less confident of the position.
+      ekf_.P_ << 1000, 0, 0, 0,
+                 0, 1000, 0, 0,
+                 0, 0, 1, 0,
+                 0, 0, 0, 1;
     }
     else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
+      cout << "Initial measurement is LASER" << endl;
       /**
       Initialize state.
       */
-      ekf_.x_ << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0, 0;
+      float px = measurement_pack.raw_measurements_[0];
+      float py = measurement_pack.raw_measurements_[1];
+      ekf_.x_ << px, py, 0, 0;
+      // If the initial measurement is radar then we are more confident of the position
+      // and have no confidence (therefore high uncertainty) in the velocity.
+      ekf_.P_ << 1, 0, 0, 0,
+                 0, 1, 0, 0,
+                 0, 0, 1000, 0,
+                 0, 0, 0, 1000;
     }
+
+    cout << "initial state " << endl;
+    cout << ekf_.x_ << endl;
 
     // done initializing, no need to predict or update
     is_initialized_ = true;
@@ -92,8 +107,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   //compute the time elapsed between the current and previous measurements
   float dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;	//dt - expressed in seconds
   previous_timestamp_ = measurement_pack.timestamp_;
-  cout << dt << endl;
-	
+  cout << "Predicting position to next timestamp" << endl;
   ekf_.F_ << 1, 0, dt, 0,
              0, 1, 0, dt,
              0, 0, 1, 0,
@@ -105,6 +119,9 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   float dt3 = dt*dt*dt;
   float dt2 = dt*dt;
 
+
+  float noise_ax = 4;
+  float noise_ay = 4;
   ekf_.Q_ = MatrixXd(4, 4);
   ekf_.Q_ << (dt4/4*noise_ax),                0,    (dt3/2*noise_ax),               0,
                             0,   (dt4/4*noise_ay),                 0,  (dt3/2*noise_ay),
@@ -117,17 +134,18 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
    *  Update
    ****************************************************************************/
 
-  /**
-   TODO:
-     * Use the sensor type to perform the update step.
-     * Update the state and covariance matrices.
-   */
-
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+    cout << "Measurement is RADAR" << endl;
     // Radar updates
+    ekf_.H_ = Tools::CalculateJacobian(ekf_.x_);
+    cout << ekf_.H_ << endl;
+    ekf_.R_ = R_radar_;
     ekf_.Update(measurement_pack.raw_measurements_);
   } else {
+    cout << "Measurement is LASER" << endl;
     // Laser updates
+    ekf_.H_ = H_laser_;
+    ekf_.R_ = R_laser_;
     ekf_.Update(measurement_pack.raw_measurements_);
   }
 
