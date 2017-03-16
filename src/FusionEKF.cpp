@@ -20,17 +20,17 @@ FusionEKF::FusionEKF() {
   // initializing matrices
   R_laser_ = MatrixXd(2, 2);
   // Hand-tuned the R_laser_ matrix to find good results.
-  R_laser_ << 0.0001, 0,
-              0, 0.0001;
+  R_laser_ << 0.0225, 0,
+              0, 0.0225;
   H_laser_ = MatrixXd(2, 4);
   H_laser_ << 1, 0, 0, 0,
               0, 1, 0, 0;
 
   R_radar_ = MatrixXd(3, 3);
   // Hand-tuned the R_radar_ matrix to find good results.
-  R_radar_ << 10, 0, 0,
-              0, 5, 0,
-              0, 0, 0.001;
+  R_radar_ << 0.09, 0, 0,
+              0, 0.0009, 0,
+              0, 0, 0.09;
 
   //the initial transition matrix F_
   ekf_.F_ = MatrixXd(4, 4);
@@ -65,14 +65,14 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       /**
       Convert radar from polar to cartesian coordinates and initialize state.
       */
-      float r = measurement_pack.raw_measurements_[0];
+      float rho = measurement_pack.raw_measurements_[0];
       float phi = measurement_pack.raw_measurements_[1];
       float rate = measurement_pack.raw_measurements_[2];
-      ekf_.x_ << r*cos(phi), r*sin(phi), rate*cos(phi), rate*sin(phi);
+      ekf_.x_ << rho*cos(phi), rho*sin(phi), rate*cos(phi), rate*sin(phi);
       // If the initial measurement is radar then we are more confident of the velocity
       // and less confident of the position.
-      ekf_.P_ << 1000, 0, 0, 0,
-                 0, 1000, 0, 0,
+      ekf_.P_ << 100, 0, 0, 0,
+                 0, 100, 0, 0,
                  0, 0, 1, 0,
                  0, 0, 0, 1;
     }
@@ -84,7 +84,7 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       float px = measurement_pack.raw_measurements_[0];
       float py = measurement_pack.raw_measurements_[1];
       ekf_.x_ << px, py, 0, 0;
-      // If the initial measurement is radar then we are more confident of the position
+      // If the initial measurement is laser then we are more confident of the position
       // and have no confidence (therefore high uncertainty) in the velocity.
       ekf_.P_ << 1, 0, 0, 0,
                  0, 1, 0, 0,
@@ -107,12 +107,12 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   //compute the time elapsed between the current and previous measurements
   float dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;	//dt - expressed in seconds
   previous_timestamp_ = measurement_pack.timestamp_;
-  cout << "Predicting position to next timestamp" << endl;
+  //cout << "Predicting position to next timestamp" << endl;
   ekf_.F_ << 1, 0, dt, 0,
              0, 1, 0, dt,
              0, 0, 1, 0,
              0, 0, 0, 1;
-  cout << ekf_.F_ << endl;
+  //cout << ekf_.F_ << endl;
 
 
   float dt4 = dt*dt*dt*dt;
@@ -137,10 +137,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
     cout << "Measurement is RADAR" << endl;
     // Radar updates
-    ekf_.H_ = Tools::CalculateJacobian(ekf_.x_);
-    cout << ekf_.H_ << endl;
     ekf_.R_ = R_radar_;
-    ekf_.Update(measurement_pack.raw_measurements_);
+    ekf_.UpdateEKF(measurement_pack.raw_measurements_);
   } else {
     cout << "Measurement is LASER" << endl;
     // Laser updates

@@ -5,18 +5,22 @@
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
-using namespace std;
 
 namespace Tools {
   /**
   * A helper method to calculate RMSE.
   */
-  VectorXd CalculateRMSE(const vector<VectorXd> &estimations, const vector<VectorXd> &ground_truth);
+  VectorXd CalculateRMSE(const std::vector<VectorXd> &estimations, const std::vector<VectorXd> &ground_truth);
 
   /**
   * A helper method to calculate Jacobians.
   */
   MatrixXd CalculateJacobian(const VectorXd& x_state);
+
+  /**
+  * A helper method to map the state vector for RADAR
+  */
+  VectorXd MapStateVectorToMeasurementSpace(const VectorXd& x_state);
 
 };
 

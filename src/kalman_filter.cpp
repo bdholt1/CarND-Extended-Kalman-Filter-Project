@@ -1,4 +1,10 @@
 #include "kalman_filter.h"
+#include "tools.h"
+#include <iostream>
+
+#define M_PI 3.14159265359
+
+using namespace std;
 
 KalmanFilter::KalmanFilter() {}
 
@@ -32,8 +38,23 @@ void KalmanFilter::Update(const VectorXd &z) {
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
-  /**
-  TODO:
-    * update the state by using Extended Kalman Filter equations
-  */
+  cout << "z = " << z << endl;
+  VectorXd h_x = Tools::MapStateVectorToMeasurementSpace(x_);
+  cout << "h_x = " << h_x << endl;
+  VectorXd y = z - h_x;
+  cout << "y = " << y << endl;
+  if (y(1) >  M_PI)
+    y(1) -= M_PI;
+  else if (y(1) <  -M_PI)
+    y(1) += M_PI;
+
+  MatrixXd H_ = Tools::CalculateJacobian(x_);
+  MatrixXd Ht = H_.transpose();
+  MatrixXd S = H_ * P_ * Ht + R_;
+  MatrixXd K =  P_ * Ht * S.inverse();
+
+  long x_size = x_.size();
+  MatrixXd I = MatrixXd::Identity(x_size, x_size);
+  x_ = x_ + (K * y);
+  P_ = (I - K * H_) * P_;
 }

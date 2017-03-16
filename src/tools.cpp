@@ -1,8 +1,10 @@
 #include <iostream>
 #include "tools.h"
 
-VectorXd Tools::CalculateRMSE(const vector<VectorXd> &estimations,
-                              const vector<VectorXd> &ground_truth) {
+using namespace std;
+
+VectorXd Tools::CalculateRMSE(const std::vector<VectorXd> &estimations,
+                              const std::vector<VectorXd> &ground_truth) {
   VectorXd rmse(4);
   rmse << 0,0,0,0;
 
@@ -56,7 +58,33 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
   //compute the Jacobian matrix
   Hj << (px/c2), (py/c2), 0, 0,
         -(py/c1), (px/c1), 0, 0,
-        py*(vx*py - vy*px)/c3, px*(px*vy - py*vx)/c3, px/c2, py/c2;
+        py*(vx*py - vy*px)/c3, px*(vy*px - vx*py)/c3, px/c2, py/c2;
 
   return Hj;
+}
+
+VectorXd Tools::MapStateVectorToMeasurementSpace(const VectorXd& x_state)
+{
+  VectorXd h(3);
+  //recover state parameters
+  float px = x_state(0);
+  float py = x_state(1);
+  float vx = x_state(2);
+  float vy = x_state(3);
+
+  //pre-compute a set of terms to avoid repeated calculation
+  float mag = sqrt(px*px+py*py);
+
+  //check division by zero
+  if(fabs(mag) < 0.0001){
+    cout << "MapStateVectorToMeasurementSpace() - Error - Division by Zero" << endl;
+    return h;
+  }
+
+  //compute the state in measurement space
+  h(0) = mag;
+  h(1) = atan2(px, py);
+  h(2) = (px*vx + py*vy) / mag;
+
+  return h;
 }
