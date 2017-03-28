@@ -28,8 +28,8 @@ FusionEKF::FusionEKF() {
 
   R_radar_ = MatrixXd(3, 3);
   // Hand-tuned the R_radar_ matrix to find good results.
-  R_radar_ << 0.09, 0, 0,
-              0, 0.0009, 0,
+  R_radar_ << 0.9, 0, 0,
+              0, 0.00009, 0,
               0, 0, 0.09;
 
   //the initial transition matrix F_
@@ -71,8 +71,8 @@ void FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       ekf_.x_ << rho*cos(phi), rho*sin(phi), rate*cos(phi), rate*sin(phi);
       // If the initial measurement is radar then we are more confident of the velocity
       // and less confident of the position.
-      ekf_.P_ << 100, 0, 0, 0,
-                 0, 100, 0, 0,
+      ekf_.P_ << 1000, 0, 0, 0,
+                 0, 1000, 0, 0,
                  0, 0, 1, 0,
                  0, 0, 0, 1;
     }

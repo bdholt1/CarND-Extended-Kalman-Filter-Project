@@ -51,7 +51,7 @@ MatrixXd Tools::CalculateJacobian(const VectorXd& x_state) {
 
   //check division by zero
   if(fabs(c1) < 0.0001){
-    cout << "CalculateJacobian () - Error - Division by Zero" << endl;
+    cout << "CalculateJacobian() - Error - Division by Zero" << endl;
     return Hj;
   }
 
@@ -83,7 +83,7 @@ VectorXd Tools::MapStateVectorToMeasurementSpace(const VectorXd& x_state)
 
   //compute the state in measurement space
   h(0) = mag;
-  h(1) = atan2(px, py);
+  h(1) = atan2(py, px);
   h(2) = (px*vx + py*vy) / mag;
 
   return h;

@@ -35,7 +35,7 @@ private:
   bool is_initialized_;
 
   // previous timestamp
-  long previous_timestamp_;
+  long long previous_timestamp_;
 
   MatrixXd R_laser_;
   MatrixXd R_radar_;

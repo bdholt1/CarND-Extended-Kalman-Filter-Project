@@ -2,8 +2,6 @@
 #include "tools.h"
 #include <iostream>
 
-#define M_PI 3.14159265359
-
 using namespace std;
 
 KalmanFilter::KalmanFilter() {}
